@@ -4,72 +4,246 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>剩余工作日计算器（中国节假日）</title>
+  <meta name="color-scheme" content="light dark" />
+
   <style>
-    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;max-width:760px;margin:24px auto;padding:0 16px;color:#111}
-    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px 16px 12px;background:#fff}
-    h1{font-size:18px;margin:0 0 12px}
-    label{display:block;font-size:13px;color:#374151;margin:10px 0 6px}
-    input{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:14px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .result{margin-top:14px;padding:12px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb}
-    .big{font-size:28px;font-weight:700;line-height:1.2}
-    .muted{color:#6b7280;font-size:12px;margin-top:6px}
-    .warn{color:#b45309}
-    code{background:#f3f4f6;padding:2px 6px;border-radius:6px}
-    @media (max-width:640px){.row{grid-template-columns:1fr}}
+    :root{
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: rgba(17,24,39,.12);
+      --shadow: 0 10px 30px rgba(17,24,39,.08);
+      --accent: #2563eb;
+      --accent-weak: rgba(37, 99, 235, .10);
+      --warn: #b45309;
+      --radius: 16px;
+    }
+
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg: #0b1220;
+        --card: #0f172a;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --border: rgba(229,231,235,.14);
+        --shadow: 0 12px 40px rgba(0,0,0,.35);
+        --accent: #60a5fa;
+        --accent-weak: rgba(96,165,250,.14);
+        --warn: #f59e0b;
+      }
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, var(--accent-weak), transparent 50%),
+                  radial-gradient(900px 500px at 95% 10%, rgba(16,185,129,.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .wrap{
+      max-width: 860px;
+      margin: 24px auto;
+      padding: 0 16px 24px;
+    }
+
+    .header{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      margin-bottom: 14px;
+    }
+
+    .title{
+      margin:0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    .subtitle{
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 680px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 2px 0 8px;
+    }
+
+    .field{
+      position: relative;
+    }
+
+    input[type="date"]{
+      width: 100%;
+      padding: 12px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+      min-height: 44px; /* 移动端更好点 */
+    }
+
+    input[type="date"]:focus{
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .result{
+      margin-top: 12px;
+      padding: 14px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--accent) 10%, transparent),
+        transparent 60%
+      );
+    }
+
+    .big{
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      line-height: 1.15;
+    }
+
+    .meta{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--card) 70%, transparent);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer{
+      margin-top: 12px;
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--card) 85%, transparent);
+      color: inherit;
+    }
+
+    .warn{ color: var(--warn); }
   </style>
 </head>
+
 <body>
-  <div class="card">
-    <h1>剩余工作日计算器（中国节假日 / 调休）</h1>
-
-    <div class="row">
-      <div>
-        <label>开始日期（默认今天）</label>
-        <input id="start" type="date" />
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div>
+          <h1 class="title">剩余工作日计算器（中国节假日 / 调休）</h1>
+          <p class="subtitle">
+            统计口径：从<strong>今天开始算（含今天）</strong> → 截止日期（含）。<br/>
+            周末默认不算工作日；法定节假日不算；调休补班算工作日。
+          </p>
+        </div>
+        <div class="pill" id="statusPill">准备就绪</div>
       </div>
-      <div>
-        <label>截止日期</label>
-        <input id="deadline" type="date" />
+
+      <div class="grid">
+        <div class="field">
+          <label for="start">开始日期（默认今天）</label>
+          <input id="start" type="date" />
+        </div>
+
+        <div class="field">
+          <label for="deadline">截止日期</label>
+          <input id="deadline" type="date" />
+        </div>
       </div>
-    </div>
 
-    <div class="result" id="result">
-      <div class="big">—</div>
-      <div class="muted">输入日期后自动计算</div>
-    </div>
+      <div class="result" id="result">
+        <div class="big">—</div>
+        <div class="meta">输入日期后自动计算</div>
+      </div>
 
-    <div class="muted">
-      URL 参数：<code>?deadline=YYYY-MM-DD</code>、<code>?start=YYYY-MM-DD</code>
+      <div class="footer">
+        <div>
+          URL 参数：
+          <code>?deadline=YYYY-MM-DD</code>
+          <code>?start=YYYY-MM-DD</code>
+        </div>
+        <div id="dataHint">节假日数据：holiday-cn</div>
+      </div>
     </div>
   </div>
 
 <script>
   // 数据源：NateScarlet/holiday-cn (每年一个 JSON)
-  // JSON 大致结构（示例）：
-  // {
-  //   "days": {
-  //     "2026-01-01": {"isOffDay": true},
-  //     "2026-02-07": {"isOffDay": false} // 调休补班
-  //   }
-  // }
-
   const $start = document.getElementById('start');
   const $deadline = document.getElementById('deadline');
   const $result = document.getElementById('result');
+  const $statusPill = document.getElementById('statusPill');
 
-  const pad = n => String(n).padStart(2,'0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
   function parseDateInput(v){
     if(!v) return null;
     const [y,m,dd] = v.split('-').map(Number);
-    return new Date(y, m-1, dd);
+    return new Date(y, m - 1, dd);
   }
 
   function addDays(date, n){
     const d = new Date(date);
-    d.setDate(d.getDate()+n);
+    d.setDate(d.getDate() + n);
     return d;
   }
 
@@ -78,14 +252,32 @@
     return day === 0 || day === 6;
   }
 
+  function setStatus(text, tone){
+    $statusPill.textContent = text;
+    $statusPill.classList.toggle('warn', tone === 'warn');
+  }
+
+  function setResult(main, meta, warn){
+    $result.innerHTML = `
+      <div class="big ${warn ? 'warn' : ''}">${main}</div>
+      <div class="meta">${meta}</div>
+    `;
+  }
+
   const holidayCache = new Map();
   async function loadHolidayYear(year){
     if(holidayCache.has(year)) return holidayCache.get(year);
+
+    // 注意：GitHub Pages 上直接 fetch 这个 CDN 是允许跨域的
     const url = `https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/${year}.json`;
-    const p = fetch(url).then(r => {
-      if(!r.ok) throw new Error('无法获取节假日数据：' + year);
-      return r.json();
-    }).then(j => j.days || {});
+
+    const p = fetch(url)
+      .then(r => {
+        if(!r.ok) throw new Error(`无法获取节假日数据：${year}`);
+        return r.json();
+      })
+      .then(j => j.days || {});
+
     holidayCache.set(year, p);
     return p;
   }
@@ -94,16 +286,18 @@
     const y = d.getFullYear();
     const map = await loadHolidayYear(y);
     const key = fmt(d);
+
+    // isOffDay: true=休息日，false=工作日（补班）
     if(map[key] && typeof map[key].isOffDay === 'boolean'){
-      // isOffDay: true=休息日，false=工作日（补班）
       return map[key].isOffDay === false;
     }
-    // 默认规则：周一到周五为工作日
+
+    // 默认：周一到周五为工作日
     return !isWeekend(d);
   }
 
   async function countRemainingWorkdays(start, deadline){
-    // 口径（你选择的版本）：从 start 当天开始计（含 start），到 deadline 当天为止（含 deadline）
+    // 口径：从 start 当天开始（含 start），到 deadline 当天为止（含 deadline）
     if(deadline < start) return 0;
 
     let cnt = 0;
@@ -113,43 +307,44 @@
     return cnt;
   }
 
-  function setResult(html){
-    $result.innerHTML = html;
-  }
-
   async function recalc(){
     const start = parseDateInput($start.value);
     const deadline = parseDateInput($deadline.value);
+
     if(!start || !deadline){
-      setResult(`<div class="big">—</div><div class="muted">输入日期后自动计算</div>`);
+      setStatus('准备就绪');
+      setResult('—', '输入日期后自动计算');
       return;
     }
 
     try{
-      const n = await countRemainingWorkdays(start, deadline);
-      const startStr = fmt(start);
-      const deadlineStr = fmt(deadline);
-      const todayStr = fmt(new Date());
-      const note = (startStr === todayStr) ? '开始日期为今天' : '开始日期为自定义';
+      setStatus('计算中…');
+      setResult('…', `正在计算（${fmt(start)} → ${fmt(deadline)}）`);
 
-      setResult(`
-        <div class="big">${n} 个工作日</div>
-        <div class="muted">${note}（${startStr} → ${deadlineStr}）</div>
-      `);
+      const n = await countRemainingWorkdays(start, deadline);
+      const note = (fmt(start) === fmt(new Date())) ? '开始日期为今天' : '开始日期为自定义';
+
+      setStatus('完成');
+      setResult(
+        `${n} 个工作日`,
+        `${note}（${fmt(start)} → ${fmt(deadline)}）`
+      );
     } catch (e){
-      setResult(`<div class="big warn">计算失败</div><div class="muted">${String(e.message || e)}</div>`);
+      setStatus('失败', 'warn');
+      setResult('计算失败', String(e && e.message ? e.message : e), true);
     }
   }
 
-  // init
   (function init(){
     const params = new URLSearchParams(location.search);
     const today = new Date();
+
     $start.value = params.get('start') || fmt(today);
     $deadline.value = params.get('deadline') || '';
 
     $start.addEventListener('change', recalc);
     $deadline.addEventListener('change', recalc);
+
     recalc();
   })();
 </script>
