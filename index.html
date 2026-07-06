@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>剩余工作日计算器（中国节假日）</title>
+  <style>
+    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;max-width:760px;margin:24px auto;padding:0 16px;color:#111}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px 16px 12px;background:#fff}
+    h1{font-size:18px;margin:0 0 12px}
+    label{display:block;font-size:13px;color:#374151;margin:10px 0 6px}
+    input{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:14px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .result{margin-top:14px;padding:12px;border-radius:10px;background:#f9fafb;border:1px solid #e5e7eb}
+    .big{font-size:28px;font-weight:700;line-height:1.2}
+    .muted{color:#6b7280;font-size:12px;margin-top:6px}
+    .warn{color:#b45309}
+    code{background:#f3f4f6;padding:2px 6px;border-radius:6px}
+    @media (max-width:640px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>剩余工作日计算器（中国节假日 / 调休）</h1>
+
+    <div class="row">
+      <div>
+        <label>开始日期（默认今天）</label>
+        <input id="start" type="date" />
+      </div>
+      <div>
+        <label>截止日期</label>
+        <input id="deadline" type="date" />
+      </div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="big">—</div>
+      <div class="muted">输入日期后自动计算</div>
+    </div>
+
+    <div class="muted">
+      URL 参数：<code>?deadline=YYYY-MM-DD</code>、<code>?start=YYYY-MM-DD</code>
+    </div>
+  </div>
+
+<script>
+  // 数据源：NateScarlet/holiday-cn (每年一个 JSON)
+  // JSON 大致结构（示例）：
+  // {
+  //   "days": {
+  //     "2026-01-01": {"isOffDay": true},
+  //     "2026-02-07": {"isOffDay": false} // 调休补班
+  //   }
+  // }
+
+  const $start = document.getElementById('start');
+  const $deadline = document.getElementById('deadline');
+  const $result = document.getElementById('result');
+
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  function parseDateInput(v){
+    if(!v) return null;
+    const [y,m,dd] = v.split('-').map(Number);
+    return new Date(y, m-1, dd);
+  }
+
+  function addDays(date, n){
+    const d = new Date(date);
+    d.setDate(d.getDate()+n);
+    return d;
+  }
+
+  function isWeekend(d){
+    const day = d.getDay();
+    return day === 0 || day === 6;
+  }
+
+  const holidayCache = new Map();
+  async function loadHolidayYear(year){
+    if(holidayCache.has(year)) return holidayCache.get(year);
+    const url = `https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/${year}.json`;
+    const p = fetch(url).then(r => {
+      if(!r.ok) throw new Error('无法获取节假日数据：' + year);
+      return r.json();
+    }).then(j => j.days || {});
+    holidayCache.set(year, p);
+    return p;
+  }
+
+  async function isWorkday(d){
+    const y = d.getFullYear();
+    const map = await loadHolidayYear(y);
+    const key = fmt(d);
+    if(map[key] && typeof map[key].isOffDay === 'boolean'){
+      // isOffDay: true=休息日，false=工作日（补班）
+      return map[key].isOffDay === false;
+    }
+    // 默认规则：周一到周五为工作日
+    return !isWeekend(d);
+  }
+
+  async function countRemainingWorkdays(start, deadline){
+    // 口径（你选择的版本）：从 start 当天开始计（含 start），到 deadline 当天为止（含 deadline）
+    if(deadline < start) return 0;
+
+    let cnt = 0;
+    for(let d = addDays(start, 0); d <= deadline; d = addDays(d, 1)){
+      if(await isWorkday(d)) cnt++;
+    }
+    return cnt;
+  }
+
+  function setResult(html){
+    $result.innerHTML = html;
+  }
+
+  async function recalc(){
+    const start = parseDateInput($start.value);
+    const deadline = parseDateInput($deadline.value);
+    if(!start || !deadline){
+      setResult(`<div class="big">—</div><div class="muted">输入日期后自动计算</div>`);
+      return;
+    }
+
+    try{
+      const n = await countRemainingWorkdays(start, deadline);
+      const startStr = fmt(start);
+      const deadlineStr = fmt(deadline);
+      const todayStr = fmt(new Date());
+      const note = (startStr === todayStr) ? '开始日期为今天' : '开始日期为自定义';
+
+      setResult(`
+        <div class="big">${n} 个工作日</div>
+        <div class="muted">${note}（${startStr} → ${deadlineStr}）</div>
+      `);
+    } catch (e){
+      setResult(`<div class="big warn">计算失败</div><div class="muted">${String(e.message || e)}</div>`);
+    }
+  }
+
+  // init
+  (function init(){
+    const params = new URLSearchParams(location.search);
+    const today = new Date();
+    $start.value = params.get('start') || fmt(today);
+    $deadline.value = params.get('deadline') || '';
+
+    $start.addEventListener('change', recalc);
+    $deadline.addEventListener('change', recalc);
+    recalc();
+  })();
+</script>
+</body>
+</html>
